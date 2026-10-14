@@ -1,0 +1,17 @@
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",
+    "B008",   # FastAPI Depends() in function defaults is idiomatic
+    "B905",   # zip strict= not needed for internal paired lists
+    "SIM108", # ternary not always clearer
+]
+
+[lint.isort]
+known-first-party = ["jevops"]
+
+[format]
+quote-style = "double"

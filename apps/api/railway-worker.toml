@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "uv run celery -A jevops.workers.celery_app:celery_app worker -l info"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5

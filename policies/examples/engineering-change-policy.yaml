@@ -1,0 +1,66 @@
+name: Engineering Change Policy
+description: Controls AI agent actions that modify code, infrastructure, or configurations
+action_types:
+  - create_pr
+  - merge_pr
+  - deploy
+  - config_change
+
+questions:
+  evidence_sufficient:
+    type: noul
+    instructions: Is there sufficient evidence that this engineering change is warranted and well-understood?
+  operational_risk:
+    type: score
+    instructions: Rate the operational risk of this change from 1 (minimal) to 10 (critical).
+    criteria:
+      - potential for service disruption
+      - reversibility of the change
+      - scope of affected systems
+  recommended_route:
+    type: choice
+    instructions: What is the recommended handling for this engineering change?
+    criteria:
+      allow: Change is low-risk and well-evidenced
+      retry: Change needs more information or smaller scope
+      human_review: Change requires senior engineer review
+      block: Change is too risky or poorly justified
+
+rules:
+  - name: auto_allow_low_risk
+    when:
+      all:
+        - evidence_sufficient >= 0.8
+        - operational_risk <= 3.0
+        - recommended_route == "allow"
+    then: allow
+    priority: 10
+    reason: Low-risk change with strong evidence
+
+  - name: block_critical_risk
+    when:
+      all:
+        - operational_risk >= 9.0
+    then: block
+    priority: 20
+    reason: Critical operational risk
+
+  - name: review_high_risk
+    when:
+      any:
+        - operational_risk >= 7.0
+        - evidence_sufficient < 0.3
+    then: human_review
+    priority: 30
+    reason: High risk or insufficient evidence requires human review
+
+  - name: retry_moderate_risk
+    when:
+      all:
+        - operational_risk >= 4.0
+        - operational_risk < 7.0
+    then: retry
+    priority: 40
+    reason: Moderate risk — suggest reducing scope or adding evidence
+
+default: human_review

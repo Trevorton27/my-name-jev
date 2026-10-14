@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: jevops
+      POSTGRES_PASSWORD: jevops
+      POSTGRES_DB: jevops
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jevops"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: apps/api
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      JEVOPS_DB_HOST: postgres
+      JEVOPS_REDIS_HOST: redis
+      JEVOPS_LOG_FORMAT: json
+    profiles:
+      - production
+
+  web:
+    build: apps/web
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    depends_on:
+      - api
+    profiles:
+      - production
+
+  worker:
+    build: apps/api
+    command: ["uv", "run", "celery", "-A", "jevops.workers.celery_app:celery_app", "worker", "-l", "info"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      JEVOPS_DB_HOST: postgres
+      JEVOPS_REDIS_HOST: redis
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    profiles:
+      - production
+
+volumes:
+  pgdata:

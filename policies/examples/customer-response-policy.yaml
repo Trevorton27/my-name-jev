@@ -1,0 +1,59 @@
+name: Customer Response Policy
+description: Controls AI agent responses to customers
+action_types:
+  - send_email
+  - send_chat_message
+  - create_ticket_response
+
+questions:
+  response_appropriate:
+    type: noul
+    instructions: Is this customer response appropriate, accurate, and helpful?
+  tone_quality:
+    type: score
+    instructions: Rate the tone and professionalism of this response from 1 (poor) to 10 (excellent).
+    criteria:
+      - empathy and understanding
+      - professionalism
+      - clarity
+  escalation_needed:
+    type: choice
+    instructions: Does this customer interaction need escalation?
+    criteria:
+      none: No escalation needed
+      supervisor: Should be reviewed by a supervisor
+      specialist: Needs domain specialist input
+
+rules:
+  - name: auto_send_high_quality
+    when:
+      all:
+        - response_appropriate >= 0.85
+        - tone_quality >= 7.0
+        - escalation_needed == "none"
+    then: allow
+    priority: 10
+    reason: High-quality response, no escalation needed
+
+  - name: block_inappropriate
+    when: response_appropriate < 0.2
+    then: block
+    priority: 20
+    reason: Response is inappropriate
+
+  - name: escalate_to_human
+    when:
+      any:
+        - escalation_needed == "supervisor"
+        - escalation_needed == "specialist"
+    then: human_review
+    priority: 30
+    reason: Escalation required
+
+  - name: retry_low_quality
+    when: tone_quality < 5.0
+    then: retry
+    priority: 40
+    reason: Response tone needs improvement
+
+default: human_review

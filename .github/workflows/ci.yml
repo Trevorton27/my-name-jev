@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Install dependencies
+        run: cd apps/api && uv sync --all-extras
+      - name: Ruff check
+        run: cd apps/api && uv run ruff check src/ tests/
+      - name: Ruff format check
+        run: cd apps/api && uv run ruff format --check src/ tests/
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jevops
+          POSTGRES_PASSWORD: jevops
+          POSTGRES_DB: jevops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Install dependencies
+        run: cd apps/api && uv sync --all-extras
+      - name: Run tests
+        run: cd apps/api && uv run pytest -xvs
+        env:
+          JEVOPS_DB_HOST: localhost
+          JEVOPS_REDIS_HOST: localhost

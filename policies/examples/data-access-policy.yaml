@@ -1,0 +1,59 @@
+name: Data Access Policy
+description: Controls AI agent access to sensitive data and databases
+action_types:
+  - query_database
+  - export_data
+  - access_pii
+
+questions:
+  access_justified:
+    type: noul
+    instructions: Is this data access justified by the current task objective and context?
+  data_sensitivity:
+    type: score
+    instructions: Rate the sensitivity of the data being accessed from 1 (public) to 10 (highly confidential).
+    criteria:
+      - contains PII
+      - contains financial data
+      - regulatory implications
+  access_scope:
+    type: choice
+    instructions: What is the appropriate access scope for this request?
+    criteria:
+      full: Full access appropriate
+      limited: Access should be limited/filtered
+      denied: Access should be denied
+
+rules:
+  - name: allow_low_sensitivity
+    when:
+      all:
+        - access_justified >= 0.7
+        - data_sensitivity <= 3.0
+        - access_scope == "full"
+    then: allow
+    priority: 10
+    reason: Low-sensitivity data with justified access
+
+  - name: block_unjustified_sensitive
+    when:
+      all:
+        - access_justified < 0.3
+        - data_sensitivity >= 7.0
+    then: block
+    priority: 20
+    reason: Unjustified access to sensitive data
+
+  - name: review_sensitive_data
+    when: data_sensitivity >= 8.0
+    then: human_review
+    priority: 30
+    reason: Highly sensitive data requires human approval
+
+  - name: retry_scope_mismatch
+    when: access_scope == "limited"
+    then: retry
+    priority: 40
+    reason: Suggest narrowing data access scope
+
+default: human_review
